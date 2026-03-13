@@ -67,3 +67,78 @@ function requireAuth(req, res, next) {
   return res.status(401).json({ message: 'Não autenticado' });
 }
 
+//login - rota
+app.post('/login', (req, res) => {
+  const { username, password } = req.body || {};
+
+  const users = readJson(usersFile);
+
+  const user = users.find(u => u.username === username && u.password === password);
+
+  if (!user) 
+    return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
+
+  req.session.user = { id: user.id, username: user.username };
+  return res.json({ success: true, user: { id: user.id, username: user.username }});
+});
+
+//logout - rota
+app.post('/logout', (req, res) => {
+  req.session.destroy(() => res.json({ success: true }));
+});
+
+// se logado decidir para onde ir ]
+app.get('/session', (req, res) => {
+  if (!req.session?.user?.user)         
+    return res.status(401).json({ message: 'Não autenticado' });
+
+  return res.json({ user: req.session.user });
+});
+
+// CRUD tarefas - rotas
+app.get('/tasks', requireAuth, (req, res) => {
+  const tasks = readJson(tasksFile);
+  return res.json(tasks);
+}); 
+
+// INCLUIR NOVA TAREFA
+app.post('/tasks', requireAuth, (req, res) => {
+  const { title, completed } = req.body || {};
+  if (!title) 
+    return res.status(400).json({ message: 'Título é obrigatório' });
+
+  const tasks = readJson(tasksFile);
+  const newId = tasks.reduce((maxId, t) => Math.max(maxId, t.id), 0) + 1;
+  const newTask = { id: newId, title, completed: !!completed };
+  tasks.push(newTask);
+  writeJson(tasksFile, tasks);
+});
+
+app.put('/tasks/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { title, completed } = req.body || {};
+
+  const tasks = readJson(tasksFile);
+
+  const taskIndex = tasks.findIndex(t => t.id === id);
+
+  if (!t) 
+    return res.status(404).json({ message: 'Tarefa não encontrada' });
+  if (title  !==    undefined)
+    t.titler = title;
+  
+  writeJson(tasksFile, tasks);
+  return res.json(t);
+}); 
+
+ app.delete( '/tasks/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const tasks = readjson (tasksFile);
+  const idx = tasks.findIndex(t => t.id === id);
+
+  if (idx === -1) 
+    return res.status(404).json({ message: 'Tarefa não encontrada' });  
+  const [removed] = tasks.splice(idx, 1);
+  writeJson(tasksFile, tasks);
+  return res.json(removed);  
+});
